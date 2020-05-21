@@ -8,7 +8,7 @@ const path = require("path")
 const GridFsStorage = require("multer-gridfs-storage")
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-var minisave = []
+
 
 mongoose.set('useFindAndModify', false);
 const User = mongoose.model('User')
@@ -157,7 +157,7 @@ router.post('/fetchInfo',(req,res)=>{
     User.findOne({Username: req.body.Username},function(err, doc){
         if(doc){
             console.log("good")
-            console.log(doc.ClassOfDegree)
+            
             res.send(doc)
             
         } 
@@ -598,6 +598,97 @@ router.get("/file/:filename", (req, res) => {
     })
   })
 
+
+  router.post('/sendMail',(req,res)=>{
+    User.findOne({Username: req.body.Username},function(err, doc){
+        if(!doc){
+           
+            res.send("requiter is not found in the database")
+
+    }  else{
+
+    
+          
+    let transporter = nodemailer.createTransport({
+     
+     service: 'gmail',
+      auth: {
+        user: 'olaniyi.jibola152@gmail.com',
+        pass: 'ridwan526'
+      },
+
+    });
+    console.log(doc)
+    
+    let mailOptions = {
+      from: 'fintech.request@gmail.com', 
+      to: req.body.sendTo, 
+      subject: doc.MailSubject, 
+      text: `hi, ${doc.ComposedMail}.`
+    
+    };
+  
+
+    transporter.sendMail(mailOptions, (error,info)=>{
+        
+      if(error){
+          return console.log(error)
+      } 
+
+      console.log("Message sent: %s", info.messageId);
+
+      
+      res.json({
+        "comment": "good",
+       
+    })
+    
+    })
+}
+            
+  })
+})
+
+router.post('/compose',(req,res)=>{
+    console.log(req.body.ComposedMail)
+    User.findOne({_id: req.body.Id},function(err, doc){
+        
+        
+        if(doc){
+
+            User.findByIdAndUpdate({_id: req.body.Id}, {
+                _id: doc._id,
+                Username: doc.Username,
+                Password: doc.Password,
+                Website: doc.Website,
+                Fullname: doc.Fullname,
+                Email: doc.Email,
+                MailSubject: req.body.MailSubject,
+                ComposedMail: req.body.ComposedMail
+                }, 
+            {new: true}, (err,docs)=>{
+
+            if (!err){
+            console.log("successfully updated")
+            console.log(docs)
+            res.send("good")
+            }
+           else{
+            console.log("error occur during update")
+            res.send("bad")
+            }
+            
+        })
+            
+        }
+        else{
+            console.log('cannot find document in the database')
+            res.send("could not find your profile in the database")
+        }
+        
+})
+
+})
 
 
 
