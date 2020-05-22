@@ -15,60 +15,60 @@ const User = mongoose.model('User')
 const router = express.Router()
 
 
+var minisave = []
+
+const mongoURI = "mongodb://localhost:27017/node-file-upl";
+// mongodb+srv://ridwan:ridwan526@ridwanlock-uqlxu.mongodb.net/test?retryWrites=true&w=majority
+// connection
+// mongodb://localhost:27017/node-file-upl
+const conn = mongoose.createConnection(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
 
 
-// const mongoURI = "mongodb://localhost:27017/node-file-upl";
-// // mongodb+srv://ridwan:ridwan526@ridwanlock-uqlxu.mongodb.net/test?retryWrites=true&w=majority
-// // connection
-// // mongodb://localhost:27017/node-file-upl
-// const conn = mongoose.createConnection(mongoURI, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true
-// });
 
+let gfs;
+conn.once("open", () => {
+  // init stream
+  gfs = new mongoose.mongo.GridFSBucket(conn.db, {
+    bucketName: "uploads"
+  });
+});
 
-
-// let gfs;
-// conn.once("open", () => {
-//   // init stream
-//   gfs = new mongoose.mongo.GridFSBucket(conn.db, {
-//     bucketName: "uploads"
-//   });
-// });
-
-// const storage = new GridFsStorage({
-//     url: mongoURI,
-//     file: (req, file) => {
+var storage = new GridFsStorage({
+    url: mongoURI,
+    file: (req, file) => {
         
-//         console.log(file.fieldname)
-//       return new Promise((resolve, reject) => {
-//         crypto.randomBytes(16, (err, buf) => {
-//           if (err) {
-//             return reject(err);
-//           }
-//           const filename = buf.toString("hex") + path.extname(file.originalname);
+        console.log(file.fieldname)
+      return new Promise((resolve, reject) => {
+        crypto.randomBytes(16, (err, buf) => {
+          if (err) {
+            return reject(err);
+          }
+          const filename = buf.toString("hex") + path.extname(file.originalname);
           
           
-//           minisave.push(filename)
-//           console.log(minisave[minisave.length-1])
+          minisave.push(filename)
+          console.log(minisave[minisave.length-1])
           
           
-//           const fileInfo = {
-//             filename: filename,
-//             bucketName: "uploads"
+          const fileInfo = {
+            filename: filename,
+            bucketName: "uploads"
 
-//           };
-//           resolve(fileInfo);
+          };
+          resolve(fileInfo);
 
 
-//         });
-//       });
-//     }
-//   });
+        });
+      });
+    }
+  });
   
-//   const upload = multer({
-//     storage
-//   });
+  const upload = multer({
+    storage
+  });
 
 
   
@@ -228,7 +228,7 @@ router.post('/editProfile',(req,res)=>{
 })
 
 
-router.post("/CV",(req,res)=>{
+router.post("/CV", upload.single("CV"),(req,res)=>{
     
     updateCV(req,res)
     
@@ -264,7 +264,7 @@ function updateCV(req,res){
                 JobRole: doc.JobRole,
                 AboutYou: doc.AboutYou,
                 NyscFile: doc.NyscFile,
-                CV: req.body.CV,
+                CV: minisave[minisave.length-1],
                 SchoolCert: doc.SchoolCert,
                 Waec: doc.Waec,
                 Picture: doc.Picture
@@ -293,7 +293,7 @@ function updateCV(req,res){
 }
 
 
-router.post("/SchoolCert",(req,res)=>{
+router.post("/SchoolCert",upload.single("SchoolCert"),(req,res)=>{
     
     updateResult(req,res)
     
@@ -330,7 +330,7 @@ function updateResult(req,res){
                 AboutYou: doc.AboutYou,
                 NyscFile: doc.NyscFile,
                 CV: doc.CV,
-                SchoolCert: req.body.SchoolCert,
+                SchoolCert: minisave[minisave.length-1],
                 Waec: doc.Waec,
                 Picture: doc.Picture
             }, 
@@ -358,7 +358,7 @@ function updateResult(req,res){
 }
 
 
-router.post("/Waec",(req,res)=>{
+router.post("/Waec", upload.single("Waec"),(req,res)=>{
     
     updateWaec(req,res)
     
@@ -396,7 +396,7 @@ function updateWaec(req,res){
                 NyscFile: doc.NyscFile,
                 CV: doc.CV,
                 SchoolCert: doc.SchoolCert,
-                Waec:  req.body.Waec,
+                Waec:  minisave[minisave.length-1],
                 Picture: doc.Picture
             }, 
             {new: true}, (err,docs)=>{
@@ -423,7 +423,7 @@ function updateWaec(req,res){
 }
 
 
-router.post("/Nysc",(req,res)=>{
+router.post("/Nysc",upload.single("NyscFile"),(req,res)=>{
     
     updateNysc(req,res)
     
@@ -458,7 +458,7 @@ function updateNysc(req,res){
                 Employers: doc.Employers,
                 JobRole: doc.JobRole,
                 AboutYou: doc.AboutYou,
-                NyscFile: req.body.NyscFile,
+                NyscFile: minisave[minisave.length-1],
                 CV: doc.CV,
                 SchoolCert: doc.SchoolCert,
                 Waec: doc.Waec,
@@ -487,70 +487,187 @@ function updateNysc(req,res){
 })
 }
 
-router.post("/Picture",(req,res)=>{
-    
-    updateProfilePicture(req,res)
-    
-})
 
-function updateProfilePicture(req,res){
-    User.findOne({_id: req.body.Id},function(err, doc){
+ 
+router.post('/Picture',(req,res)=>{
+    storage = multer.diskStorage({
+        destination: function(req, file, cb){
+            cb(null, 'uploads/')
+        },
+        filename: function(req, file, cb){
+            console.log(file)
+            cb(null, file.originalname)
+        }
+    })   
+    
+ const upload = multer({storage}).single('Picture')
+ upload(req, res, function(err){
+     if(err){
+         return res.send(err)
+     }
+     console.log("file uploaded to server")
+     console.log(req.file)
+     
+
+     const cloudinary = require('cloudinary').v2
+     cloudinary.config({
+         cloud_name: 'dcx4utzdx',
+         api_key: '226791946435464',
+         api_secret: 'yzsp3pOrvIEzFAhfMfWEIWXQmmA'
+     })
+     console.log("welcome to cloudinary")
+     const path = req.file.path
+    
+     const uniqueFilename = new Date().toISOString()
+
+     cloudinary.uploader.upload(
+         path,
+         {
+             public_id: `blog/${uniqueFilename}`, tags: `blog`
+         },
+         function(err, image){
+             if(err) return console.log(err)
+             console.log("file uploaded to cloudinary")
+
+             const fs = require('fs')
+             fs.unlinkSync(path)
+             console.log(image)
+            //localsave.passport = image.secure_url
+
+
+            User.findOne({_id: req.body.Id},function(err, doc){
         
         
-        if(doc){
-
-            User.findByIdAndUpdate({_id: req.body.Id}, {
-                _id: doc._id,
-                Username: doc.Username,
-                Password: doc.Password,
-                Website: doc.Website,
-                Fullname: doc.Fullname,
-                DateOfBirth: doc.DateOfBirth,
-                Email: doc.Email,
-                Gender: doc.Gender,
-                Address: doc.Address,
-                Country: doc.Country,
-                State: doc.State,
-                Status: doc.Status,
-                NYSC: doc.NYSC,
-                PhoneNumber: doc.PhoneNumber,
-                HomeNumber: doc.HomeNumber,
-                Institution: doc.Institution,
-                Course: doc.Course,
-                ClassOfDegree: doc.ClassOfDegree,
-                Experience: doc.Experience,
-                Employers: doc.Employers,
-                JobRole: doc.JobRole,
-                AboutYou: doc.AboutYou,
-                NyscFile: doc.NyscFile,
-                CV: doc.CV,
-                SchoolCert: doc.SchoolCert,
-                Waec: doc.Waec,
-                Picture: req.body.Picture
-            }, 
-            {new: true}, (err,docs)=>{
-
-            if (!err){
-            console.log("successfully updated")
-            console.log(docs.Picture)
-            console.log(typeof(docs.Picture))
-            res.send("good")
-            }
-           else{
-            console.log("error occur during update")
-            res.send("bad")
-            }
+                if(doc){
+        
+                    User.findByIdAndUpdate({_id: req.body.Id}, {
+                        _id: doc._id,
+                        Username: doc.Username,
+                        Password: doc.Password,
+                        Website: doc.Website,
+                        Fullname: doc.Fullname,
+                        DateOfBirth: doc.DateOfBirth,
+                        Email: doc.Email,
+                        Gender: doc.Gender,
+                        Address: doc.Address,
+                        Country: doc.Country,
+                        State: doc.State,
+                        Status: doc.Status,
+                        NYSC: doc.NYSC,
+                        PhoneNumber: doc.PhoneNumber,
+                        HomeNumber: doc.HomeNumber,
+                        Institution: doc.Institution,
+                        Course: doc.Course,
+                        ClassOfDegree: doc.ClassOfDegree,
+                        Experience: doc.Experience,
+                        Employers: doc.Employers,
+                        JobRole: doc.JobRole,
+                        AboutYou: doc.AboutYou,
+                        NyscFile: doc.NyscFile,
+                        CV: doc.CV,
+                        SchoolCert: doc.SchoolCert,
+                        Waec: doc.Waec,
+                        Picture: image.secure_url
+                    }, 
+                    {new: true}, (err,docs)=>{
+        
+                    if (!err){
+                    console.log("successfully updated")
+                    console.log(docs.Picture)
+                    console.log(typeof(docs.Picture))
+                    res.send("good")
+                    }
+                   else{
+                    console.log("error occur during update")
+                    res.send("bad")
+                    }
+                    
+                })
+                    
+                }
+                else{
+                    console.log('cannot find document in the database')
+                    res.send("could not find your profile in the database")
+                }
             
         })
-            
-        }
-        else{
-            console.log('cannot find document in the database')
-            res.send("could not find your profile in the database")
-        }
-    
+
+
+         }
+     )
+ }
+ )
+
+
 })
-}
+
+
+
+
+// router.post("/Picture",(req,res)=>{
+    
+//     updateProfilePicture(req,res)
+    
+// })
+
+// function updateProfilePicture(req,res){
+//     User.findOne({_id: req.body.Id},function(err, doc){
+        
+        
+//         if(doc){
+
+//             User.findByIdAndUpdate({_id: req.body.Id}, {
+//                 _id: doc._id,
+//                 Username: doc.Username,
+//                 Password: doc.Password,
+//                 Website: doc.Website,
+//                 Fullname: doc.Fullname,
+//                 DateOfBirth: doc.DateOfBirth,
+//                 Email: doc.Email,
+//                 Gender: doc.Gender,
+//                 Address: doc.Address,
+//                 Country: doc.Country,
+//                 State: doc.State,
+//                 Status: doc.Status,
+//                 NYSC: doc.NYSC,
+//                 PhoneNumber: doc.PhoneNumber,
+//                 HomeNumber: doc.HomeNumber,
+//                 Institution: doc.Institution,
+//                 Course: doc.Course,
+//                 ClassOfDegree: doc.ClassOfDegree,
+//                 Experience: doc.Experience,
+//                 Employers: doc.Employers,
+//                 JobRole: doc.JobRole,
+//                 AboutYou: doc.AboutYou,
+//                 NyscFile: doc.NyscFile,
+//                 CV: doc.CV,
+//                 SchoolCert: doc.SchoolCert,
+//                 Waec: doc.Waec,
+//                 Picture: req.body.Picture
+//             }, 
+//             {new: true}, (err,docs)=>{
+
+//             if (!err){
+//             console.log("successfully updated")
+//             console.log(docs.Picture)
+//             console.log(typeof(docs.Picture))
+//             res.send("good")
+//             }
+//            else{
+//             console.log("error occur during update")
+//             res.send("bad")
+//             }
+            
+//         })
+            
+//         }
+//         else{
+//             console.log('cannot find document in the database')
+//             res.send("could not find your profile in the database")
+//         }
+    
+// })
+// }
 
 
 
@@ -690,6 +807,25 @@ router.post('/compose',(req,res)=>{
 
 })
 
+
+router.get("/file/:filename", (req, res) => {
+     console.log('id', req.params.id)
+    const file = gfs
+      .find({
+        filename: req.params.filename
+      })
+      .toArray((err, files) => {
+        if (!files || files.length === 0) {
+          return res.status(404).json({
+            err: "no files exist"
+          });
+        }
+        else{
+            console.log("found")
+        gfs.openDownloadStreamByName(req.params.filename).pipe(res);
+        }
+      });
+  });
 
 
 module.exports = router
